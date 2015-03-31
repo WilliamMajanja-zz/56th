@@ -19,6 +19,72 @@ class KenyaParserCouldNotParseTimeString(Exception):
 
 
 class KenyaParser():
+    """
+    # match National Assembly start and end times
+    >>> result = KenyaParser.na_reg.match("The House met at 10.15 a.m.")
+    >>> result.group('action')
+    'met'
+    >>> result.group('time')
+    '10.15 a.m.'
+    >>> result = KenyaParser.na_reg.match("The House rose at 6.45 p.m.")
+    >>> result.group('action')
+    'rose'
+
+    # match the Senate start and end times
+    >>> result = KenyaParser.sen_reg.match("The Senate met at 10.15 a.m.")
+    >>> result.group('action')
+    'met'
+    >>> result = KenyaParser.sen_reg.match("The House met at the Senate Chamber at 10.15 a.m.")
+    >>> result.group('time')
+    '10.15 a.m.'
+    >>> result = KenyaParser.sen_reg.match("The House met at the Senate Chamber, Parliament Buildings, at 10.15 a.m.")
+    >>> result.group('time')
+    '10.15 a.m.'
+    >>> result = KenyaParser.sen_reg.match("The House rose at 6.45 p.m.")
+    >>> result.group('action')
+    'rose'
+    >>> result = KenyaParser.sen_reg.match("The Senate rose at 6.45 p.m.")
+    >>> result.group('action')
+    'rose'
+
+    # match Joint Sitting start and end times
+    >>> result = KenyaParser.joint_reg.match("Parliament rose at 6.45 p.m.")
+    >>> result.groups()
+    ('rose', '6.45 p.m.')
+    >>> result = KenyaParser.joint_reg.match("Parliament met at Fifty eight minutes past Nine o'clock in the National Assembly Chamber")
+    >>> result.groups()
+    ('met', "Fifty eight minutes past Nine o'clock")
+    """
+
+    na_reg  = re.compile(r"""
+        The\ House\s
+        (?P<action>met|rose)\s
+        (?:at\ )?
+        (?P<time>\d+\.\d+\ [ap].m.)""", re.VERBOSE)
+
+    # not ideal as this could accidentally match na_reg as well,
+    # relies on na_reg always being checked first
+    sen_reg = re.compile(r"""
+        The\ (?:House|Senate)\s
+        (?P<action>met|rose)
+        (?:
+            \ at\ the\ Senate\ Chamber
+            (?:,\ Parliament\ Buildings,)?
+        )?
+        (?:\ at\ )?
+        (?P<time>\d+\.\d+\ [ap].m.)""", re.VERBOSE)
+
+    joint_reg = re.compile(r"""
+        Parliament\s
+        (?P<action>(?:met|rose))\s
+        at\s
+        (?P<time>
+            (?:(?:[A-Za-z\- ]+\ minutes?\ (?:past|to)\ )?[A-Za-z]+\ o'clock)
+            |
+            (?:\d+\.\d+\ [ap].m.)
+        )
+        (?:\ in\ the\ National\ Assembly\ Chamber)?""", re.VERBOSE)
+
 
     @classmethod
     def convert_pdf_to_html(cls, pdf_file):
@@ -309,33 +375,6 @@ class KenyaParser():
             slug = 'senate',
             defaults = {"name": "Senate"},
         )
-
-        # regexps to capture the times
-        na_reg  = re.compile(r"""
-            The\ House\s
-            (?P<action>met|rose)\s
-            (?:at\ )?
-            (?P<time>\d+\.\d+\ [ap].m.)""", re.VERBOSE)
-
-        # not ideal as this could accidentally match na_reg as well,
-        # relies on na_reg always being checked first
-        sen_reg = re.compile(r"""
-            The\ (?:House|Senate)\s
-            (?P<action>met|rose)\s
-            (?:at\ the\ Senate\ Chamber\ )?.*
-            (?:at\ )?
-            (?P<time>\d+\.\d+\ [ap].m.)""", re.VERBOSE)
-
-        joint_reg = re.compile(r"""
-            Parliament\s
-            (?P<action>(?:met|rose))\s
-            at\s
-            (?P<time>
-                (?:(?:[A-Za-z\- ]+\ minutes?\ (?:past|to)\ )?[A-Za-z]+\ o'clock)
-                |
-                (?:\d+\.\d+\ [ap].m.)
-            )
-            (?:\ in\ the\ National\ Assembly\ Chamber)?""", re.VERBOSE)
 
         reg   = None
         venue = None
